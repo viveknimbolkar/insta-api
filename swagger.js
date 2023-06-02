@@ -3,7 +3,7 @@ const swaggerJsDocs = require("swagger-jsdoc");
 const swaggerOptions = {
   swaggerDefinition: {
     info: {
-      title: "Instagram API",
+      title: "Insta API",
       version: "1.0.0",
     },
   },

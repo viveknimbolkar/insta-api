@@ -3,6 +3,20 @@ const bcrypt = require("bcrypt");
 
 const SALT_FACTOR = 10;
 
+const userPost = mongoose.Schema({
+  imageURL: {
+    require: true,
+    type: String,
+  },
+  originalFilename: {
+    require: true,
+    type: String,
+  },
+  createdAt: {
+    require: true,
+    type: String,
+  },
+});
 const userSchema = mongoose.Schema({
   name: {
     require: true,
@@ -32,7 +46,7 @@ const userSchema = mongoose.Schema({
   gender: {
     type: String,
   },
-  posts: [String],
+  posts: [userPost],
 });
 
 // encrypt password before storing

@@ -1,9 +1,11 @@
 const router = require("express").Router();
 const User = require("../models/user.js");
 const jwt = require("jsonwebtoken");
-const verifyRequest = require("./auth.js");
+const { verifyRequest } = require("../middlewares/verifyRequest.js");
 const uniqueUsernameGenerator = require("unique-username-generator");
-
+const cloudinary = require("../lib/cloudinary.js");
+const upload = require("../lib/multer.js");
+const path = require("path");
 /**
  * @swagger
  * /user/update_profile:
@@ -34,7 +36,6 @@ const uniqueUsernameGenerator = require("unique-username-generator");
  */
 router.post("/user/update_profile", verifyRequest, async (req, res) => {
   const { name, username, bio, email } = req.body;
-  console.log(name, username, bio, email);
 
   const filter = { email: email };
   const updateParams = {
@@ -47,7 +48,6 @@ router.post("/user/update_profile", verifyRequest, async (req, res) => {
   };
   User.updateOne(filter, updateParams)
     .then((data) => {
-      console.log(data);
       if (data.modifiedCount > 0)
         res.status(200).json({ output: "Profile updated successfully" });
       else res.status(200).json({ output: "Profile not updated" });
@@ -124,4 +124,162 @@ router.post("/user/delete_account", verifyRequest, async (req, res) => {
         .json({ output: "Something went wrong. Try again later." });
     });
 });
+
+/**
+ * @swagger
+ * /user/add_post:
+ *   post:
+ *     description: add user post
+ *     parameters:
+ *       - in: formData
+ *         name: post
+ *         schema:
+ *           type: file
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Success
+ *       500:
+ *         description: Error
+ */
+router.post(
+  "/user/add_post",
+  verifyRequest,
+  upload.single("post"),
+  async (req, res) => {
+    try {
+      const email = jwt.decode(
+        req.headers.authorization,
+        process.env.JWT_SECRET
+      ).email;
+
+      
+      if (req.file === undefined) {
+        return res.status(200).json({ output: "File not provided." });
+      }
+
+      // we are saving file on local storage and cloudinary parallaly
+      const result = await cloudinary.uploader.upload_large(req.file.path);
+      if (result) {
+        console.log(result);
+      } else {
+        console.log(result);
+      }
+      const imagePost = {
+        imageURL: result.secure_url,
+        originalFilename: result.original_filename,
+        createdAt: result.created_at,
+      };
+      User.findOneAndUpdate({ email: email }, { $push: { posts: imagePost } })
+        .exec()
+        .then((data) => {
+          return res
+            .status(200)
+            .json({ output: "Image uploaded successfully" });
+        })
+        .catch((error) => {
+          return res.status(200).json({ output: error });
+        });
+    } catch (error) {
+      console.log(error);
+      return res.status(error.http_code).json({
+        output: error.message,
+      });
+    }
+    // if (result) {
+    //   const filter = { email: req.body.email };
+    //   const userPostUpdateParams = {
+    //     $set: {
+    //       "posts.$.imageURL": result.secure_url,
+    //       "posts.$.originalFilename": result.original_filename,
+    //       "posts.$.createdAt": result.created_at,
+    //     },
+    //   };
+    //   User.updateOne(filter, userPostUpdateParams)
+    //     .then((data) => {
+    //       console.log(data);
+    //       res.status(200).json({ output: "Image uploaded successfully." });
+    //     })
+    //     .catch((error) => {
+    //       console.log(error);
+    //       res.status(200).json({ output: error });
+    //     });
+    // }
+  }
+);
+
+/**
+ * @swagger
+ * /user/delete_image:
+ *   post:
+ *     description: delete user post image
+ *     parameters:
+ *       - in: query
+ *         name: image_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *       - in: query
+ *         name: token
+ *         schema:
+ *           type: string
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Success
+ *       500:
+ *         description: Error
+ */
+router.post("/user/delete_image", verifyRequest, async (req, res) => {
+  const email = jwt.decode(
+    req.headers.authorization,
+    process.env.JWT_SECRET
+  ).email;
+
+  if (!req.body.image_id) {
+    return res.status(200).json({ output: "Image ID not provided." });
+  }
+
+  const getUser = await User.findOne({ email: email });
+  console.log(getUser);
+  // const cloudinaryInstance = await cloudinary.uploader.destroy(getUser.posts)
+});
+
+/**
+ * @swagger
+ * /user/get_images:
+ *   post:
+ *     description: delete user post image
+ *     parameters:
+ *       - in: query
+ *         name: image_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *       - in: query
+ *         name: token
+ *         schema:
+ *           type: string
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Success
+ *       500:
+ *         description: Error
+ */
+router.post("/user/delete_image", verifyRequest, async (req, res) => {
+  const email = jwt.decode(
+    req.headers.authorization,
+    process.env.JWT_SECRET
+  ).email;
+
+  if (!req.body.image_id) {
+    return res.status(200).json({ output: "Image ID not provided." });
+  }
+
+  const getUser = await User.findOne({ email: email });
+  console.log(getUser);
+  // const cloudinaryInstance = await cloudinary.uploader.destroy(getUser.posts)
+});
+
 module.exports = router;
